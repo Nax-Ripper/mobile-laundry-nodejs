@@ -19,6 +19,10 @@ imageUrl:{
 isSelected:{
   type:Boolean,
   required:false,
+},
+price:{
+  type:Number,
+  
 }
 });
 

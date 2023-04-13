@@ -154,11 +154,14 @@ authRouter.get('/api/get-rider-fee',auth,async(req,res) => {
 
   if(now.getHours()> 17 || now.getHours() < 5)
 {
- return res.json({riderFee: 20})
+ return res.json({riderFee: 5})
 }  else{
- return res.json({riderFee:10})
+ return res.json({riderFee:2})
 }
 });
+
+
+
 
 
 
