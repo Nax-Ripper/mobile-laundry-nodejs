@@ -7,9 +7,9 @@ const Services = require('../models/services_model');
 
 adminRoute.post('/admin/add-product', admin, async (req, res) => {
   try {
-    const { name, description, price, images } = req.body;
+    const { name, description, price, images, } = req.body;
 
-    let product = new Product({ name, description, price, images },)
+    let product = new Product({ name, description, price, images ,},)
 
     product = await product.save();
     return res.json(product);

@@ -5,6 +5,8 @@ const adminRouter = require('./routes/admin')
 const mongoose = require('mongoose');
 
 const env = require('dotenv').config();
+
+const cloudinary = require('cloudinary').v2
 // const PORT = 3000;
 const PORT = process.env.PORT || 3000
 
@@ -16,6 +18,8 @@ mongoose.set('strictQuery', false);
 
 // init
 const app = express();
+
+app.set('view engine', 'ejs');
 
 
 // listen to port
@@ -32,17 +36,26 @@ const app = express();
 
 const connectDB = async () => {
   try {
-    const connect = await mongoose.connect(process.env.MONGO_URI);
+    const connect = await mongoose.connect(process.env.MONGO_URI,{useNewUrlParser: true, useUnifiedTopology: true});
     console.log(`MongoDB Connected :${connect.connection.host}`);
   } catch (error) {
-
+    console.log(error);
     process.exit(1);
 
   }
 }
 
-connectDB().then(()=>{
-  app.listen(PORT,()=>{
+const cloudinaryConfig={
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+};
+
+cloudinary.config(cloudinaryConfig);
+
+
+connectDB().then(() => {
+  app.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`);
   })
 })
