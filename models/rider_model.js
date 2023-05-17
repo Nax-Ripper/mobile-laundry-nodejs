@@ -39,9 +39,9 @@ const riderSchema = mongoose.Schema({
         require:true,
         validate:{
           validator:(value)=>{
-            return value.length<9;
+            return value.length<11;
           },
-          mag:'Please enter a valid phone number'
+          msg:'Please enter a valid phone number'
         }
       },
       imagesIc:[
