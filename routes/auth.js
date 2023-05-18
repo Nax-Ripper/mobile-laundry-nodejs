@@ -183,7 +183,7 @@ async function convertToPDF(name, phone, email, icUrl, lisenceUrl) {
   await page.setContent(htmlContent);
 
   // Generate PDF
-  const pdfPath = 'D:/Flutter/Projects/amazon_clone_tutorial/lib/server/output.pdf'; // Update with your desired output path
+  const pdfPath = 'output.pdf'; // Update with your desired output path
   await page.pdf({ path: pdfPath, format: 'A4' });
 
 
