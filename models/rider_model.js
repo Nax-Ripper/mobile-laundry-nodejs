@@ -24,25 +24,25 @@ const riderSchema = mongoose.Schema({
         type: String,
         // required: true,
         trim: true,
-        // validate :{
-        //   validator :(value)=>{
-        //    return value.length >6;
+        validate :{
+          validator :(value)=>{
+           return value.length >6;
     
-        //   },
-        //   msg: "Please enter a valid password"
-        // }
+          },
+          msg: "Please enter a valid password"
+        }
       },
       phoneNumber:{
         type:String,
         default: '',
         trim:true,
         require:true,
-        validate:{
-          validator:(value)=>{
-            return value.length<11;
-          },
-          msg:'Please enter a valid phone number'
-        }
+        // validate:{
+        //   validator:(value)=>{
+        //     return value.length<11;
+        //   },
+        //   msg:'Please enter a valid phone number'
+        // }
       },
       imagesIc:[
         {
