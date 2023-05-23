@@ -24,6 +24,10 @@ const ejs = require('ejs');
 const { log } = require('console');
 
 const doc = new PDFDocument({ dpi: 300 });
+var passwordGenerator = require('generate-password');
+const nodemailer = require('nodemailer');
+
+
 const authRouter = express.Router();
 
 // 1. post to signUp 
@@ -68,33 +72,54 @@ authRouter.post('/api/signup', async (req, res) => {
 authRouter.post('/api/signin', async (req, res) => {
   try {
     const { email, password } = req.body;
-    // check user exitst
-    // const user =Promise.resolve(User.findOne({email:email}));
-    const user = await User.findOne({ email: email });
+    const { riderQuery } = req.query;
+    console.log(riderQuery);
+    if (riderQuery == 'rider') {
+      const rider = await Rider.findOne({ email: email });
+      if (!rider) {
+        return res.status(400).json({ msg: 'User not exist with this email' });
+
+      }
+      const isMatch = await bcrypt.compare(password, rider.password);
+      if (!isMatch) {
+        return res.status(400).json({ msg: 'Incorrect Password' });
+
+      }
+      const token = jwt.sign({ id: rider._id }, 'passwordKey');
+      return res.status(200).json({
+        token, ...rider._doc
+      })
+    } else {
+      // check user exitst
+      // const user =Promise.resolve(User.findOne({email:email}));
+      const user = await User.findOne({ email: email });
 
 
-    if (!user) {
-      return res.status(400).json({ msg: `User not exist with this email: ${email}` })
+      if (!user) {
+        return res.status(400).json({ msg: `User not exist with this email: ${email}` })
+      }
+      // 1.unencrypt the pwd
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ msg: 'Incorrect Password' })
+      }
+      // if match
+      const token = jwt.sign({ id: user._id }, 'passwordKey',);
+
+      return res.status(200).json({
+        token: token,
+        ...user._doc
+      });
+
+      // {
+      //   token : 'sometoken',
+      //   name: nameNaren,
+      //   email:email
+
+      // }
+
     }
-    // 1.unencrypt the pwd
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Incorrect Password' })
-    }
-    // if match
-    const token = jwt.sign({ id: user._id }, 'passwordKey',);
 
-    return res.status(200).json({
-      token: token,
-      ...user._doc
-    });
-
-    // {
-    //   token : 'sometoken',
-    //   name: nameNaren,
-    //   email:email
-
-    // }
 
   } catch (error) {
     res.json(error.message);
@@ -137,10 +162,10 @@ authRouter.post('/api/rider/signUp', async function (req, res) {
     });
     rider.pdf = cloudiResult.secure_url;
     await rider.save();
-    fs.unlink(pdfPath,(error)=>{
-      if(error){
+    fs.unlink(pdfPath, (error) => {
+      if (error) {
         console.log('Error deleting file :', error);
-      }else{
+      } else {
         console.log('File deleted successfully');
       }
     })
@@ -152,34 +177,167 @@ authRouter.post('/api/rider/signUp', async function (req, res) {
   }
 });
 
+authRouter.get('/api/get-all-applied-riders', async function (req, res) {
+  try {
+    const riders = await Rider.find({
+      approved: false
+    });
+    return res.json({ riders: riders });
+  } catch (error) {
+    return res.json({ error: error.message })
+
+  };
+
+
+});
+
+
+const transporter = nodemailer.createTransport({
+  // host: 'smtp.gmail.com',
+  // port: 587,
+  service: 'gmail',
+  // secure: false,
+  auth: {
+    user: 'narendran@graduate.utm.my',
+    pass: 'usceqmhcnawgdmnw'
+  }
+})
+
+authRouter.post('/api/approve-rider/:id', async function (req, res) {
+
+
+  // change approvd to true 
+  //  generate temp password 
+  // save to database
+  // send email the username and password
+
+  try {
+    const { id } = req.params;
+    console.log(id);
+
+
+    var rider = await Rider.findById(id);
+
+    if (!rider.approved) {
+      const genPassword = passwordGenerator.generate({
+        length: 8,
+        numbers: true,
+      });
+
+      const salt = bcrypt.genSaltSync(10);
+      const hashPwd = bcrypt.hashSync(genPassword, salt);
+
+      console.log(hashPwd);
+      console.log(genPassword);
+
+      rider = await Rider.findByIdAndUpdate(id, {
+        approved: true,
+        password: hashPwd.toString()
+      });
+
+      log(rider.email);
+
+      await transporter.sendMail({
+        from: 'narendran@graduate.utm.my',
+        to: rider.email,
+        subject: 'Your Application has been approved',
+        html: `<h1>Your password is : ${genPassword}</h1> <br> <h1>Your username is : ${rider.email}</h1>`
+      })
+      return res.json(rider)
+    } else {
+      return res.json({ msg: 'Rider already approved' })
+    }
+
+
+  } catch (error) {
+    return res.json({ error: error.message })
+  }
+
+})
+
 async function convertToPDF(name, phone, email, icUrl, lisenceUrl) {
   const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
 
-  // Set page content and wait for rendering to complete
-  const htmlContent = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rider Application</title>
-  </head>
-  <body>
-    <h1>Rider Application for ${name}</h1>
-    <h2>Name: ${name}</h2>
-    <h2>Email: ${email}</h2>
-    <h2>Phone Number: ${phone}</h2>
-    <div>
-      <h2>IC Image:</h2>
-      <img src="${icUrl}" height="500px" width="300px" alt="IC Image">
-      <h2>License Image:</h2>
-      <img src="${lisenceUrl}" height="500px" width="300px" alt="License Image">
+  const htmlContent =
+    `<!DOCTYPE html>
+<html>
+<head>
+  <title>User Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 5px;
+    }
+
+    .user-info {
+      margin-bottom: 20px;
+    }
+
+    .user-info label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    .user-info span {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    .user-image {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      border-top: 4px solid black;
+      padding-top: 10px;
+    }
+
+    .user-image img {
+      max-width: 48%;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      height : 300;
+      width: 300;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="user-info">
+      <label for="name">Name:</label>
+      <span id="name">${name}</span>
     </div>
-  </body>
-  </html>
-`;
+    <div class="user-info">
+      <label for="email">Email:</label>
+      <span id="email">${email}</span>
+    </div>
+    <div class="user-info">
+      <label for="phone">Phone:</label>
+      <span id="phone">${phone}</span>
+    </div>
+    <div class="user-image">
+      <label for="image1">Image 1:</label>
+      <img id="image1" src="${icUrl}" alt="Image 1">
+    </div>
+    <div class="user-image">
+      <label for="image2">Image 2:</label>
+      <img id="image2" src="${lisenceUrl}" alt="Image 2">
+    </div>
+  </div>
+</body>
+</html>`
   await page.setContent(htmlContent);
 
   // Generate PDF
