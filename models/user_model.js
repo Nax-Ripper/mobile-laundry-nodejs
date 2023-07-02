@@ -44,12 +44,12 @@ const userSchema = mongoose.Schema({
   },
   phoneNumber:{
     type:String,
-    default: '',
+
     trim:true,
     require:true,
     validate:{
       validator:(value)=>{
-        return value.length<9;
+        return value.length>9;
       },
       mag:'Please enter a valid phone number'
     }

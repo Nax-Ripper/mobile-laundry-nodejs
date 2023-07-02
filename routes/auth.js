@@ -12,7 +12,6 @@ const auth = require('../middlewares/auth');
 
 const Order = require('../models/order_model');
 
-const RiderOrders = require('../models/rider_order_model');
 const Rider = require('../models/rider_model');
 
 const PDFDocument = require('pdfkit');
@@ -20,13 +19,19 @@ const cloudinary = require('cloudinary').v2;
 const fs = require('fs');
 const request = require('request');
 const puppeteer = require('puppeteer');
-const ejs = require('ejs');
-const { log } = require('console');
+
+const { log, timeStamp } = require('console');
+
 
 const doc = new PDFDocument({ dpi: 300 });
 var passwordGenerator = require('generate-password');
 const nodemailer = require('nodemailer');
+const otpGenerator = require('otp-generator')
+const crypto = require('crypto');
+const optSecretKey = 'otp-secret-key';
+const msg91 = require('msg91').default;
 
+msg91.initialize({ authKey: optSecretKey });
 
 const authRouter = express.Router();
 
@@ -37,7 +42,9 @@ authRouter.post('/api/signup', async (req, res) => {
   // 3. return that data to user
   try {
 
-    const { name, email, password } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
+
+    console.log(req.body);
 
     const existingUser = await User.findOne({ email: email });
 
@@ -55,7 +62,8 @@ authRouter.post('/api/signup', async (req, res) => {
     let user = new User({
       name: name,
       email: email,
-      password: hashPwd
+      password: hashPwd,
+      phoneNumber: phoneNumber
     })
 
     user = await user.save();
@@ -110,13 +118,6 @@ authRouter.post('/api/signin', async (req, res) => {
         token: token,
         ...user._doc
       });
-
-      // {
-      //   token : 'sometoken',
-      //   name: nameNaren,
-      //   email:email
-
-      // }
 
     }
 
@@ -179,10 +180,20 @@ authRouter.post('/api/rider/signUp', async function (req, res) {
 
 authRouter.get('/api/get-all-applied-riders', async function (req, res) {
   try {
-    const riders = await Rider.find({
-      approved: false
-    });
-    return res.json({ riders: riders });
+    const { approved } = req.query;
+    if (approved == 'approved') {
+      const riders = await Rider.find({
+        approved: true
+      })
+      return res.json({ riders: riders })
+    } else {
+      const riders = await Rider.find({
+        approved: false
+      });
+      return res.json({ riders: riders });
+
+    }
+
   } catch (error) {
     return res.json({ error: error.message })
 
@@ -191,6 +202,82 @@ authRouter.get('/api/get-all-applied-riders', async function (req, res) {
 
 });
 
+
+authRouter.post('/api/get-otp', async function (req, res) {
+  const { email, riderid } = req.query;
+
+  const otp = otpGenerator.generate(4, {
+    digits: true,
+    lowerCaseAlphabets: false,
+    upperCaseAlphabets: false,
+    specialChars: false
+  });
+  console.log(otp);
+  const ttl = 5 * 60 * 1000;
+  const expires = Date.now() + ttl;
+  const data = `${email}.${otp}.${expires}`
+  const hash = crypto.createHmac('sha256', optSecretKey).update(data).digest('hex')
+  const fullHash = `${hash}.${expires}`
+
+  const rider = await Rider.findByIdAndUpdate(riderid, {
+    tempHash: fullHash,
+  }, { new: true })
+
+  await transporter.sendMail({
+    from: 'narendran@graduate.utm.my',
+    to: email,
+    subject: 'Rider OTP',
+    html: `<h1>Rider OTP is : ${otp}</h1>`
+  })
+
+  return res.json({
+    message: 'Success',
+    data: fullHash,
+
+  });
+
+
+
+})
+
+authRouter.post('/api/verify-otp', async function (req, res) {
+  const { otp, hash, email, riderId,orderId } = req.body;
+  console.log(req.body);
+  let [hashValue, expires] = hash.split('.');
+  let now = Date.now();
+  if (now > parseInt(expires)) {
+    return res.json({ message: 'OTP Expired' });
+  }
+
+  let data = `${email}.${otp}.${expires}`;
+  let newCalculateHash = crypto.createHmac('sha256', optSecretKey).update(data).digest('hex');
+
+  if (newCalculateHash === hashValue) {
+    const order = await Order.findByIdAndUpdate(orderId, {
+      verified: true,
+      riderId:riderId,
+    }, { new: true })
+    return res.json({ message: 'Success' })
+  }
+  return res.json({ message: 'Invalid OTP' })
+
+
+})
+
+async function verifyOTP(params, callback) {
+  let [hashValue, expires] = params.hash.split('.');
+  let now = Date.now();
+  if (now > parseInt(expires)) return callback('OTP Expired');
+
+  let data = `${params.phone}.${params.otp}.${expires}`;
+  let newCalculateHash = crypto.createHmac('sha256', optSecretKey).update(data).digest('hex');
+
+  if (newCalculateHash === hashValue) {
+    return callback(null, 'Success')
+  }
+  return callback('Invalid OTP')
+
+}
 
 const transporter = nodemailer.createTransport({
   // host: 'smtp.gmail.com',
@@ -241,7 +328,7 @@ authRouter.post('/api/approve-rider/:id', async function (req, res) {
         from: 'narendran@graduate.utm.my',
         to: rider.email,
         subject: 'Your Application has been approved',
-        html: `<h1>Your password is : ${genPassword}</h1> <br> <h1>Your username is : ${rider.email}</h1>`
+        html: `<h1>Your password is : ${genPassword}</h1> <br> <h1>Your email is : ${rider.email}</h1>`
       })
       return res.json(rider)
     } else {
@@ -461,6 +548,21 @@ authRouter.post('/api/place-order', auth, async (req, res) => {
   }
 });
 
+authRouter.post('/api/updateRiderId/:id',async (req,res) => {
+  try {
+    const {id}=req.params;
+    const {orderId}= req.query;
+    const order = Order.findByIdAndUpdate(orderId,{
+      riderId:id
+    },{new:true})
+
+
+  } catch (error) {
+    
+  }
+})
+
+
 
 
 authRouter.get('/api/get-orders/:id', auth, async function (req, res) {
@@ -480,18 +582,11 @@ authRouter.get('/api/get-orders/:id', auth, async function (req, res) {
     console.log(id);
     // res.json({id});
     if (id == "all") {
-      orders = await Order.find({});
+      orders = await Order.find({ 'accepted': false });
       for (let i = 0; i < orders.length; i++) {
         userIds[i] = orders[i]['userId']; //get userId
         users[i] = await User.findById(userIds[i]); //get User for that id
 
-        // combined = {
-        //   orders: orders.map((order) => {
-        //     return order;
-        //   }),
-        //   // ...users[i]._doc
-        //   user:users[i]
-        // }
 
         riderOrders[i] = orders[i].toJSON();
         riderOrders[i] = { ...riderOrders[i], user: users[i] };
@@ -512,7 +607,13 @@ authRouter.get('/api/get-orders/:id', auth, async function (req, res) {
 
     } else {
       order = await Order.find({ userId: id });
-      users = await User.findById(order.userId);
+      // users = await User.findById(order.userId);
+
+      order.sort((a, b) => {
+        const timestampA = new Date(a.createdAt);
+        const timestampB = new Date(b.createdAt);
+        return timestampB - timestampA;
+      })
 
       res.json({ "orders": order });
 
@@ -527,6 +628,26 @@ authRouter.get('/api/get-orders/:id', auth, async function (req, res) {
   }
 
 });
+
+authRouter.post('/api/accept',async (req, res) => {
+  
+
+  try {
+    const {id,accept} = req.body;
+    log(res.body)
+    const order = await Order.findByIdAndUpdate(id,{
+      accepted:true
+    },{new:true});
+
+    res.json(order);
+    
+  } catch (error) {
+    return res.status(500).json({error:error.message})
+    
+  }
+})
+
+
 
 
 authRouter.get('/api/getOrder-by-OrderId/:id', async (req, res) => {
@@ -591,31 +712,29 @@ function insertImageFromURL(url, x, y, width, height) {
   });
 }
 
+// authRouter.post('/api/accept-order', async function (req, res) {
+//   try {
+//     const { orderId } = req.query;
+//     console.log(orderId);
+
+//     const order = await Order.findByIdAndUpdate(
+//       orderId,
+//       {
+//         accepted: true
+//       }, { new: true });
+
+//     return res.json(order);
 
 
 
 
 
 
+//   } catch (error) {
 
+//   }
+// })
 
-// authRouter.post("/api/signin", async (req, res) => {
-//     const { email, password } = req.body;//request email, password
-
-//     const user = await User.findOne({ email });//check exist or not
-//     if (!user) {
-//         return res.json({ error: "User not exists" });
-//     }
-//     if (await bcrypt.compare(password, user.password)) {
-
-//         if (res.status(201)) {
-//             return res.json({ status: "ok", data: token });
-//         } else {
-//             return res.json({ error: "error" });
-//         }
-//     }
-//     res.json({ status: "error", error: "Invalid Password " });
-// });
 
 
 

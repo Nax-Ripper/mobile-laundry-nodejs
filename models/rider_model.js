@@ -62,6 +62,10 @@ const riderSchema = mongoose.Schema({
   },
   pdf: {
     type: String
+  },
+  tempHash:{
+    default:'',
+    type:String
   }
 
 

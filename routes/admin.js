@@ -33,11 +33,14 @@ adminRoute.get('/admin/get-product', admin, async (req, res) => {
 })
 
 
-adminRoute.post('/admin/delete-product', admin, async (req, res) => {
+adminRoute.post('/admin/delete-product/:id', admin, async (req, res) => {
   try {
     console.log(req.body);
-    const {id} = req.body;
+    const {id} = req.params;
+    console.log(req.params);
+
     let product = await Product.findByIdAndRemove(id);
+    product = await Product.find({});
     // product = await product.save();
     return res.json(product)
   } catch (error) {

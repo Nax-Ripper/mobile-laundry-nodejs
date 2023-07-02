@@ -8,9 +8,9 @@ const orderSchema = mongoose.Schema({
     // type:String
   },
   products: [
-   {
-    type:Product
-   }
+    {
+      type: Product
+    }
   ],
   subTotal: {
     type: Number,
@@ -39,36 +39,50 @@ const orderSchema = mongoose.Schema({
   // paymentType:{
   //   type:String
   // },
-  status:{
+  status: {
     type: Number,
     default: 2
   },
-  pickUpTime:{
+  pickUpTime: {
     type: Date,
   },
-  deliveryTime:{
-    type:Date
+  deliveryTime: {
+    type: Date
   },
-  pickupLat:{
-    type:Number
+  pickupLat: {
+    type: Number
   },
-  pickupLong:{
-    type:Number
+  pickupLong: {
+    type: Number
   },
-  deliveryLat:{
-    type:Number
+  deliveryLat: {
+    type: Number
   },
-  deliveryLong:{
-    type:Number
+  deliveryLong: {
+    type: Number
   },
-  dobiLat:{
-    type:Number,
-    default:2.499571073897077
+  dobiLat: {
+    type: Number,
+    default: 2.499571073897077
   },
-  dobiLong:{
-    type:Number,
+  dobiLong: {
+    type: Number,
     default: 102.85764956066805
+  },
+  accepted: {
+    type: Boolean,
+    default: false
+  },
+  verified:{
+    type:Boolean,
+    default: false
+  },
+  riderId:{
+    type: String,
+    ref: 'Rider',
+    default:''
   }
+
 
 
 },
