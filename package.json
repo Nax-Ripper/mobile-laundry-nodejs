@@ -23,6 +23,7 @@
     "msg91": "^2.1.4",
     "nodemailer": "^6.9.2",
     "otp-generator": "^4.0.1",
+    "pdf-creator-node": "^2.3.5",
     "pdfkit": "^0.13.0",
     "puppeteer": "^20.2.1",
     "request": "^2.88.2"

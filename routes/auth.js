@@ -369,8 +369,12 @@ authRouter.post('/api/approve-rider/:id', async function (req, res) {
 })
 
 async function convertToPDF(name, phone, email, icUrl, lisenceUrl) {
-  const browser = await puppeteer.launch({ headless: 'new' });
-  const page = await browser.newPage();
+  // const browser = await puppeteer.launch({ headless: 'new' });
+  // const page = await browser.newPage();
+  var pdf = require('pdf-creator-node');
+  // var fs = require('fs');
+  // var path = require('path');
+
 
   const htmlContent =
     `<!DOCTYPE html>
@@ -451,17 +455,62 @@ async function convertToPDF(name, phone, email, icUrl, lisenceUrl) {
   </div>
 </body>
 </html>`
-  await page.setContent(htmlContent);
 
-  // Generate PDF
-  const pdfPath = 'output.pdf'; // Update with your desired output path
-  await page.pdf({ path: pdfPath, format: 'A4' });
+var path= './output.pdf'
+var document = {
+  html:htmlContent,
+  path:path,
+  type:'',
+  data: {
+   
+  },
+
+}
+
+let options = {
+  format: "A3",
+  orientation: "portrait",
+  border: "10mm",
+  header: {
+      height: "45mm",
+      contents: '<div style="text-align: center;">Author: Shyam Hajare</div>'
+  },
+  footer: {
+      height: "28mm",
+      contents: {
+          first: 'Cover page',
+          2: 'Second page', // Any page number is working. 1-based index
+          default: '<span style="color: #444;">{{page}}</span>/<span>{{pages}}</span>', // fallback value
+          last: 'Last Page'
+      }
+  }
+};
+
+// pdf
+//   .create(document,options)
+//   .then((res) => {
+//     console.log(res);
+//     return res.filename;
+//   })
+//   .catch((error) => {
+//     console.error(error);
+//   });
+
+  let res =await pdf.create(document,options);
+  return res.filename;
+  // return path;
+
+  // await page.setContent(htmlContent);
+
+  // // Generate PDF
+  // const pdfPath = 'output.pdf'; // Update with your desired output path
+  // await page.pdf({ path: pdfPath, format: 'A4' });
 
 
-  await browser.close();
+  // await browser.close();
 
-  console.log('PDF generated successfully!');
-  return pdfPath;
+  // console.log('PDF generated successfully!');
+  // return pdfPath;
 }
 
 
