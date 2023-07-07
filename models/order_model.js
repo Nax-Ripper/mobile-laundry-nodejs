@@ -44,10 +44,10 @@ const orderSchema = mongoose.Schema({
     default: 2
   },
   pickUpTime: {
-    type: Date,
+    type: String,
   },
   deliveryTime: {
-    type: Date
+    type: String
   },
   pickupLat: {
     type: Number

@@ -182,12 +182,12 @@ authRouter.get('/api/get-all-applied-riders', async function (req, res) {
   try {
     const { approved } = req.query;
     if (approved == 'approved') {
-      const riders = await Rider.find({
+      let riders = await Rider.find({
         approved: true
       })
       return res.json({ riders: riders })
     } else {
-      const riders = await Rider.find({
+      let riders = await Rider.find({
         approved: false
       });
       return res.json({ riders: riders });
@@ -201,6 +201,32 @@ authRouter.get('/api/get-all-applied-riders', async function (req, res) {
 
 
 });
+
+authRouter.post('/api/reject-rider/:id',async (req, res) => {
+  try {
+    const {id}= req.params;
+
+    let rider = await Rider.findById(id);
+    console.log(rider.email);
+    await transporter.sendMail({
+      from: 'narendran@graduate.utm.my',
+      to: rider.email,
+      subject: 'Application Rejected',
+      html: `<h1>We are sorry to say to say that your application to be a rider for Laundryfy has been rejected.</h1>`
+    })
+    //delete rider
+     await Rider.findOneAndRemove({_id:id})
+    rider = await Rider.find({});
+    console.log(rider);
+    res.json({riders:rider});
+    
+   
+ 
+
+  } catch (error) {
+    
+  }
+})
 
 
 authRouter.post('/api/get-otp', async function (req, res) {
@@ -415,11 +441,11 @@ async function convertToPDF(name, phone, email, icUrl, lisenceUrl) {
       <span id="phone">${phone}</span>
     </div>
     <div class="user-image">
-      <label for="image1">Image 1:</label>
+      <label for="image1">IC Image :</label>
       <img id="image1" src="${icUrl}" alt="Image 1">
     </div>
     <div class="user-image">
-      <label for="image2">Image 2:</label>
+      <label for="image2">License Image:</label>
       <img id="image2" src="${lisenceUrl}" alt="Image 2">
     </div>
   </div>
