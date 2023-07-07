@@ -131,7 +131,7 @@ authRouter.post('/api/signin', async (req, res) => {
 
 authRouter.post('/api/rider/signUp', async function (req, res) {
   try {
-    const { name, email, phone, icURL, lisenceURL } = req.body;
+    const { name, email, phone, icURL, lisenceURL ,pdf} = req.body;
     console.log(name);
     const existingUser = await Rider.findOne({ email: email });
 
@@ -147,34 +147,35 @@ authRouter.post('/api/rider/signUp', async function (req, res) {
       phoneNumber: phone,
       imagesIc: icURL,
       imageLisence: lisenceURL,
+      pdf:pdf
     });
     rider = await rider.save();
 
     // take the url store in db
     // return res.json(rider);
 
-    const pdfPath = await convertToPDF(name, phone, email, icURL, lisenceURL);
-    console.log(pdfPath);
+    // const pdfPath = await convertToPDF(name, phone, email, icURL, lisenceURL);
+    // console.log(pdfPath);
 
-    // const cloudiResult = await cloudinary.uploader.upload(`${pdfPath}`, {
+    // // const cloudiResult = await cloudinary.uploader.upload(`${pdfPath}`, {
+    // //   folder: `Riders/${name}`,
+    // //   public_id: `${name}`,
+    // //   type: 'upload'
+    // // });
+    // const cloudiResult = await cloudinary.uploader.upload(`/var/task/output.pdf`, {
     //   folder: `Riders/${name}`,
     //   public_id: `${name}`,
     //   type: 'upload'
     // });
-    const cloudiResult = await cloudinary.uploader.upload(`/var/task/output.pdf`, {
-      folder: `Riders/${name}`,
-      public_id: `${name}`,
-      type: 'upload'
-    });
-    rider.pdf = cloudiResult.secure_url;
-    await rider.save();
-    fs.unlink(pdfPath, (error) => {
-      if (error) {
-        console.log('Error deleting file :', error);
-      } else {
-        console.log('File deleted successfully');
-      }
-    })
+    // rider.pdf = cloudiResult.secure_url;
+    // await rider.save();
+    // fs.unlink(pdfPath, (error) => {
+    //   if (error) {
+    //     console.log('Error deleting file :', error);
+    //   } else {
+    //     console.log('File deleted successfully');
+    //   }
+    // })
 
     return res.json(rider);
 
